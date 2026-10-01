@@ -1,26 +1,31 @@
-import Image from 'next/image'
+import { notFound } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
 import { Section } from '@/components/ui/Section'
 import { Grid } from '@/components/ui/Grid'
 import { ProductCard } from '@/components/ProductCard'
 import { ProductDetailsClient } from './client'
-import { featuredProducts } from '@/lib/sample-data'
+import { getProductBySlug, getRelatedProducts } from '@/lib/dal/products'
+import { formatPrice } from '@/lib/utils/format'
 
 interface ProductDetailsPageProps {
   params: Promise<{
-    id: string
+    slug: string
   }>
 }
 
 export default async function ProductDetailsPage({ params }: ProductDetailsPageProps) {
-  const { id } = await params
+  const { slug } = await params
 
-  const product = featuredProducts.find(p => p.id === id) || featuredProducts[0]
+  const product = await getProductBySlug(slug)
 
-  const relatedProducts = featuredProducts
-    .filter(p => p.category === product?.category && p.id !== product?.id)
-    .slice(0, 4)
+  if (!product) {
+    notFound()
+  }
+
+  const relatedProducts = await getRelatedProducts(product.categoryId, product.id)
+
+  const ratingNum = parseFloat(product.rating)
 
   return (
     <main>
@@ -32,7 +37,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
             <span className="mx-2">/</span>
             <a href="/products" className="hover:text-neutral-900 transition-colors">Products</a>
             <span className="mx-2">/</span>
-            <span className="text-neutral-900">{product?.name}</span>
+            <span className="text-neutral-900">{product.name}</span>
           </div>
         </Container>
       </Section>
@@ -43,7 +48,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
           <Grid cols={2} className="gap-12 items-start">
             {/* Image Gallery */}
             <div>
-              <ProductDetailsClient product={product} />
+              <ProductDetailsClient imageUrl={product.imageUrl} productName={product.name} />
             </div>
 
             {/* Product Info */}
@@ -51,7 +56,7 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
               {/* Header */}
               <div className="mb-6">
                 <p className="text-xs uppercase tracking-widest text-neutral-500 mb-3">
-                  {product.category}
+                  {product.category.name}
                 </p>
                 <h1 className="font-display text-4xl md:text-5xl font-light mb-4">
                   {product.name}
@@ -63,14 +68,14 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
                     {Array.from({ length: 5 }).map((_, i) => (
                       <span
                         key={i}
-                        className={i < Math.floor(product.rating) ? 'text-accent-red text-lg' : 'text-neutral-300 text-lg'}
+                        className={i < Math.floor(ratingNum) ? 'text-accent-red text-lg' : 'text-neutral-300 text-lg'}
                       >
                         ★
                       </span>
                     ))}
                   </div>
                   <span className="text-sm text-neutral-600">
-                    {product.rating} ({product.reviews} reviews)
+                    {product.rating} ({product.reviewCount} reviews)
                   </span>
                 </div>
               </div>
@@ -79,28 +84,42 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
               <div className="border-b border-neutral-200 pb-6 mb-6">
                 <div className="flex items-baseline gap-3 mb-4">
                   <p className="text-4xl font-semibold">
-                    ${product.price.toLocaleString()}
+                    {formatPrice(product.priceInCents)}
                   </p>
-                  <p className="text-lg text-neutral-500 line-through">
-                    ${(product.price * 1.15).toFixed(0)}
-                  </p>
+                  {product.compareAtPriceInCents && (
+                    <p className="text-lg text-neutral-500 line-through">
+                      {formatPrice(product.compareAtPriceInCents)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full" />
-                  <span className="text-sm font-semibold text-green-600">
-                    In Stock (12 available)
-                  </span>
+                  {product.stock > 0 ? (
+                    <>
+                      <div className="w-2 h-2 bg-green-500 rounded-full" />
+                      <span className="text-sm font-semibold text-green-600">
+                        In Stock ({product.stock} available)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-2 h-2 bg-red-500 rounded-full" />
+                      <span className="text-sm font-semibold text-red-600">
+                        Out of Stock
+                      </span>
+                    </>
+                  )}
                 </div>
               </div>
 
               {/* Description */}
-              <div className="mb-8">
-                <p className="text-neutral-700 leading-relaxed">
-                  Crafted from premium materials with meticulous attention to detail, this piece embodies our commitment to timeless elegance.
-                  Each garment is designed to be a versatile staple in your wardrobe, seamlessly transitioning from day to evening.
-                </p>
-              </div>
+              {product.description && (
+                <div className="mb-8">
+                  <p className="text-neutral-700 leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+              )}
 
               {/* Size Selection */}
               <div className="mb-8">
@@ -156,14 +175,18 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
 
               {/* Product Details */}
               <div className="border-t border-neutral-200 pt-8 space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-sm text-neutral-600">Material</span>
-                  <span className="text-sm font-semibold">100% Premium Silk & Cotton Blend</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-neutral-600">Care</span>
-                  <span className="text-sm font-semibold">Dry Clean Only</span>
-                </div>
+                {product.material && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-neutral-600">Material</span>
+                    <span className="text-sm font-semibold">{product.material}</span>
+                  </div>
+                )}
+                {product.careInstructions && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-neutral-600">Care</span>
+                    <span className="text-sm font-semibold">{product.careInstructions}</span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-neutral-600">Shipping</span>
                   <span className="text-sm font-semibold">Free Worldwide Shipping</span>
@@ -223,7 +246,13 @@ export default async function ProductDetailsPage({ params }: ProductDetailsPageP
               {relatedProducts.map((prod) => (
                 <ProductCard
                   key={prod.id}
-                  {...prod}
+                  slug={prod.slug}
+                  name={prod.name}
+                  priceInCents={prod.priceInCents}
+                  imageUrl={prod.imageUrl}
+                  categoryName={prod.category.name}
+                  rating={prod.rating}
+                  reviewCount={prod.reviewCount}
                 />
               ))}
             </Grid>

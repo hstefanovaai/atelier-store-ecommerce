@@ -4,32 +4,24 @@ import { useState } from 'react'
 import Image from 'next/image'
 import { Grid } from '@/components/ui/Grid'
 
-interface Product {
-  id: string
-  name: string
-  price: number
-  image: string
-  category: string
-  rating: number
-  reviews: number
+interface ProductGalleryProps {
+  imageUrl: string
+  productName: string
 }
 
-interface ProductDetailsClientProps {
-  product: Product
-}
-
-export function ProductDetailsClient({ product }: ProductDetailsClientProps) {
+export function ProductDetailsClient({ imageUrl, productName }: ProductGalleryProps) {
   const [imageIndex, setImageIndex] = useState(0)
 
-  const productImages = [product.image, product.image, product.image, product.image]
+  const productImages = [imageUrl, imageUrl, imageUrl, imageUrl]
+  const currentImage = productImages[imageIndex] ?? imageUrl
 
   return (
     <>
       {/* Main Image */}
       <div className="relative bg-neutral-100 aspect-[3/4] overflow-hidden mb-4 group">
         <Image
-          src={productImages[imageIndex]}
-          alt={product.name}
+          src={currentImage}
+          alt={productName}
           fill
           className="object-cover group-hover:scale-105 transition-transform duration-300"
           priority

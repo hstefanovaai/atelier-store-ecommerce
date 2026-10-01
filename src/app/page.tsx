@@ -1,5 +1,3 @@
-'use client'
-
 import Image from 'next/image'
 import { Button } from '@/components/ui/Button'
 import { Container } from '@/components/ui/Container'
@@ -7,14 +5,17 @@ import { Section } from '@/components/ui/Section'
 import { Grid } from '@/components/ui/Grid'
 import { ProductCard } from '@/components/ProductCard'
 import { CollectionCard } from '@/components/CollectionCard'
+import { getFeaturedProducts } from '@/lib/dal/products'
 import {
   collections,
-  featuredProducts,
   heroSection,
   stories,
-} from '@/lib/sample-data'
+} from '@/lib/editorial-data'
 
-export default function Home() {
+export default async function Home() {
+  const featuredProducts = await getFeaturedProducts()
+
+
   return (
     <main>
       {/* Hero Section */}
@@ -84,7 +85,13 @@ export default function Home() {
             {featuredProducts.map((product) => (
               <ProductCard
                 key={product.id}
-                {...product}
+                slug={product.slug}
+                name={product.name}
+                priceInCents={product.priceInCents}
+                imageUrl={product.imageUrl}
+                categoryName={product.category.name}
+                rating={product.rating}
+                reviewCount={product.reviewCount}
               />
             ))}
           </Grid>
